@@ -1,3 +1,6 @@
+const zlib = require("zlib");
+const pako = require("pako");
+
 const {
   decode,
   generateQRData,
@@ -9,6 +12,8 @@ const {
   translateToJson,
   replaceKeysAtDepth,
   replaceValuesForClaim169,
+  isZlibHeader,
+  decompressData,
 } = require("../src/utils/cborUtils");
 
 const {
@@ -329,4 +334,39 @@ test("translateToJson handles Map with mixed value types", () => {
   expect(result.null).toBe(null);
   expect(result.array).toStrictEqual([1, 2, 3]);
   expect(result.object.nested).toBe("value");
+});
+
+/* ------------------------------------------------------------------
+ * cborUtils.js - isZlibHeader and decompressData (v1.2.1 compression)
+ * ------------------------------------------------------------------ */
+
+test("isZlibHeader returns true for valid zlib compressed data", () => {
+  const compressed = pako.deflate(new Uint8Array([1, 2, 3]));
+  expect(isZlibHeader(compressed)).toBe(true);
+});
+
+test("isZlibHeader returns false for non-zlib bytes", () => {
+  expect(isZlibHeader(new Uint8Array([0xff, 0x00]))).toBe(false);
+});
+
+test("isZlibHeader returns false for null input", () => {
+  expect(isZlibHeader(null)).toBe(false);
+});
+
+test("isZlibHeader returns false for empty input", () => {
+  expect(isZlibHeader(new Uint8Array([]))).toBe(false);
+});
+
+test("decompressData correctly decompresses zlib compressed input", () => {
+  const original = new Uint8Array([10, 20, 30, 40, 50]);
+  const compressed = pako.deflate(original);
+  const result = decompressData(compressed);
+  expect(result).toStrictEqual(original);
+});
+
+test("decompressData correctly decompresses Brotli compressed input", () => {
+  const original = Buffer.from("hello brotli");
+  const compressed = new Uint8Array(zlib.brotliCompressSync(original));
+  const result = decompressData(compressed);
+  expect(Buffer.from(result).toString()).toBe("hello brotli");
 });
