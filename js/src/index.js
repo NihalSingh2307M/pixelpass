@@ -5,6 +5,7 @@ const {
   COLOR_BLACK,
   COLOR_WHITE,
   DEFAULT_ZLIB_COMPRESSION_LEVEL,
+  DEFAULT_BROTLI_COMPRESSION_QUALITY,
   DEFAULT_ECC_LEVEL,
   ZIP_HEADER,
   DEFAULT_ZIP_FILE_NAME,
@@ -12,6 +13,7 @@ const {
   CLAIM_169_VALUE_MAPPER,
   CLAIM_169_REVERSE_KEY_MAPPER,
 } = require("./shared/Constants");
+const zlib = require("zlib");
 const QRCode = require("qrcode");
 const b45 = require("base45-web");
 const pako = require("pako");
@@ -23,6 +25,7 @@ const {
   replaceKeysAtDepth,
   replaceValuesForClaim169,
   decodeFromBase64UrlFormat,
+  decompressData,
 } = require("./utils/cborUtils.js");
 const { toMapWithKeyAndValueMapper } = require("./utils/mapperUtils.js");
 
@@ -41,28 +44,49 @@ function toJson(base64UrlEncodedCborEncodedString) {
   }
 }
 
-function generateQRData(data, header = "") {
+function generateQRData(data, header = "", compressionType = "zlib") {
   let parsedData = null;
   let compressedData, b45EncodedData;
+
   try {
     parsedData = JSON.parse(data);
     const cborEncodedData = cbor.encode(parsedData);
-    compressedData = pako.deflate(cborEncodedData, {
-      level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
-    });
+
+    if (compressionType === "brotli") {
+      compressedData = zlib.brotliCompressSync(cborEncodedData, {
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: DEFAULT_BROTLI_COMPRESSION_QUALITY },
+      });
+    } else {
+      compressedData = pako.deflate(cborEncodedData, {
+        level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
+      });
+    }
   } catch (e) {
     console.error("Data is not JSON");
-    compressedData = pako.deflate(data, {
-      level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
-    });
+
+    if (compressionType === "brotli") {
+      compressedData = zlib.brotliCompressSync(Buffer.from(data), {
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: DEFAULT_BROTLI_COMPRESSION_QUALITY },
+      });
+    } else {
+      compressedData = pako.deflate(data, {
+        level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
+      });
+    }
   } finally {
     b45EncodedData = b45.encode(compressedData).toString();
   }
+
   return header + b45EncodedData;
 }
 
-async function generateQRCode(data, ecc = DEFAULT_ECC_LEVEL, header = "") {
-  const base45Data = generateQRData(data, header);
+async function generateQRCode(
+  data,
+  ecc = DEFAULT_ECC_LEVEL,
+  header = "",
+  compressionType = "zlib"
+) {
+  const base45Data = generateQRData(data, header, compressionType);
   const opts = {
     errorCorrectionLevel: ecc,
     quality: DEFAULT_QR_QUALITY,
@@ -80,7 +104,7 @@ function decode(data) {
   const decodedBase45Data = b45.decode(data);
   // Base45 returns number[], convert it
   const binaryData = Uint8Array.from(decodedBase45Data);
-  const decompressedData = pako.inflate(binaryData);
+  const decompressedData = decompressData(binaryData);
   const textData = new TextDecoder().decode(decompressedData);
   try {
     const decodedCBORData = cbor.decodeFirstSync(decompressedData);

@@ -43,13 +43,15 @@ These updates improve interoperability and reduce CBOR payload sizes.
 
 ## Features
 
-- Compresses the data using zlib compression of level 9.
+- Compresses the data using zlib (default) or Brotli compression.
 
 - Encodes/ Decodes the data using base45.
 
 - When the Data is JSON, it does the CBOR encode/decode to reduce size further.
 
 - When JSON and a Mapper is given, it maps the JSON with Mapper and then does the CBOR encode/decode which further reduces the size of the data.
+
+- Supports Claim-169 v1.2.1: new demographic fields (#19–23: Full Name - Secondary Language, Secondary Language, Location Code, Legal Status, Country of Issuance), and deprecates Binary Image / Binary Image Format (#16/#17) in favor of the Face biometric object (#62).
 
 ## Usage
 
@@ -72,7 +74,7 @@ git clone https://github.com/inji/pixelpass.git && cd pixelpass && git checkout 
 
 ## APIs
 
-### generateQRCode( data, ecc , header )
+### generateQRCode( data, ecc , header, compressionType )
 
 - `data` - Data needs to be compressed and encoded.
 
@@ -80,24 +82,29 @@ git clone https://github.com/inji/pixelpass.git && cd pixelpass && git checkout 
 
 - `header` - Data header need to be prepend to identify the encoded data. defaults to `""`.
 
+- `compressionType` - Compression algorithm to use, `"zlib"` or `"brotli"`. defaults to `"zlib"`.
+
 ```javascript
 import { generateQRCode } from "@injistack/pixelpass";
 
 const data = "Hello";
-const qrCode = generateQRCode(data, ecc, header);
+const qrCode = generateQRCode(data, ecc, header, compressionType);
 
 // ecc is Error Correction Level for the QR generated. defaults to "L".
 // header defaults to empty string if not passed.
+// compressionType defaults to "zlib"; pass "brotli" to use Brotli instead.
 ```
 
-The `generateQRCode` takes a data, ECC (Error correction level) which when not passed defaults to L and header which defaults to empty string if not passed.
+The `generateQRCode` takes a data, ECC (Error correction level) which when not passed defaults to L, header which defaults to empty string if not passed, and a compression type which defaults to `"zlib"`.
 Returns a base64 encoded PNG image.
 
-### generateQRData( data, header )
+### generateQRData( data, header, compressionType )
 
 - `data` - Data needs to be compressed and encoded.
 
 - `header` - Data header need to be prepend to identify the encoded data. defaults to `""`.
+
+- `compressionType` - Compression algorithm to use, `"zlib"` or `"brotli"`. defaults to `"zlib"`.
 
 ```javascript
 import { generateQRData } from "@injistack/pixelpass";
@@ -105,13 +112,14 @@ import { generateQRData } from "@injistack/pixelpass";
 const jsonString = '{"name":"Steve","id":"1","l_name":"jobs"}';
 const header = "jsonstring";
 
-const encodedCBORData = generateQRData(jsonString, header);
+const encodedCBORData = generateQRData(jsonString, header, "brotli");
 
 // header defaults to empty string if not passed.
+// compressionType defaults to "zlib"; pass "brotli" to use Brotli instead.
 ```
 
-The `generateQRData` takes a valid JSON string and a header which when not passed defaults to an empty string.
-This API will return a base45 encoded string which is `Compressed > CBOR Encoded > Base45 Encoded`.
+The `generateQRData` takes a valid JSON string, a header which when not passed defaults to an empty string, and a compression type which defaults to `"zlib"`.
+This API will return a base45 encoded string which is `Compressed (zlib or Brotli) > CBOR Encoded > Base45 Encoded`.
 
 ### decode( data )
 
@@ -125,7 +133,7 @@ const b45EncodedData =
 const jsonString = decode(b45EncodedData);
 ```
 
-The `decode` will take a `string` as parameter and gives us decoded JSON string which is Base45 `Decoded > CBOR Decoded > Decompressed`.
+The `decode` will take a `string` as parameter and gives us decoded JSON string which is Base45 `Decoded > CBOR Decoded > Decompressed`. Compression type (zlib or Brotli) is auto-detected — no need to pass it in.
 
 ### decodeBinary( data )
 

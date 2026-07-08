@@ -85,4 +85,28 @@ describe("getMappedData", () => {
       hello: "world",
     });
   });
+
+  test("round-trips v1.2.1 fields #19-23 (Full Name - Secondary Language, Secondary Language, Location Code, Legal Status, Country of Issuance)", () => {
+    const jsonData = {
+      ID: "919859243",
+      Version: "1.2.1",
+      "Full Name": "Jane B",
+      "Full Name - Secondary Language": "جين",
+      "Secondary Language": "ara",
+      "Location Code": "IN-DL-110001",
+      "Legal Status": "Refugee",
+      "Country of Issuance": "IND",
+      Face: { Data: "abcd1234", "Data format": "Image", "Data sub format": "JPEG" },
+    };
+
+    const result = getMappedData(
+      jsonData,
+      CLAIM_169_KEY_MAPPER,
+      CLAIM_169_VALUE_MAPPER,
+      true
+    );
+    const decoded = JSON.parse(decodeMappedData(result));
+
+    expect(decoded).toMatchObject(jsonData);
+  });
 });

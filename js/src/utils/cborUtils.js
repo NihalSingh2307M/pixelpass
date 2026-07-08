@@ -1,3 +1,6 @@
+const zlib = require("zlib");
+const pako = require("pako");
+
 const {
   CLAIM_169_BIOMETRIC_KEYS,
   CLAIM_169_BIOMETRIC_DATA_FORMAT_KEY,
@@ -6,6 +9,23 @@ const {
   CLAIM_169_BIOMETRIC_SUB_FORMAT_REVERSE_VALUE_MAPPER,
   CLAIM_169_ROOT_REVERSE_VALUE_MAPPER,
 } = require("../shared/Constants");
+
+// Check if the payload uses the zlib format.
+function isZlibHeader(bytes) {
+  if (!bytes || bytes.length < 2) return false;
+  const cmf = bytes[0];
+  const flg = bytes[1];
+  if ((cmf & 0x0f) !== 8) return false;
+  return ((cmf << 8) + flg) % 31 === 0;
+}
+
+// Support both zlib and Brotli compressed payloads.
+function decompressData(binaryData) {
+  if (isZlibHeader(binaryData)) {
+    return pako.inflate(binaryData);
+  }
+  return new Uint8Array(zlib.brotliDecompressSync(Buffer.from(binaryData)));
+}
 
 function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
@@ -177,11 +197,12 @@ function replaceValuesForClaim169(jsonData) {
 function decodeFromBase64UrlFormat(content) {
   return Buffer.from(content, "base64url");
 }
-
 module.exports = {
   hexToBytes,
   translateToJson,
   replaceKeysAtDepth,
   replaceValuesForClaim169,
   decodeFromBase64UrlFormat,
+  isZlibHeader,
+  decompressData,
 };

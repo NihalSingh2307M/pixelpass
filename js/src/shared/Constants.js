@@ -9,6 +9,7 @@ exports.DEFAULT_QR_BORDER = 3
 exports.DEFAULT_QR_QUALITY = 1
 exports.ZIP_HEADER = "PK"
 exports.DEFAULT_ZIP_FILE_NAME = "certificate.json"
+exports.DEFAULT_BROTLI_COMPRESSION_QUALITY = 11
 
 exports.CLAIM_169_KEY_MAPPER = {
   "ID": 1,
@@ -26,9 +27,15 @@ exports.CLAIM_169_KEY_MAPPER = {
   "Nationality": 13,
   "Marital Status": 14,
   "Guardian": 15,
-  "Binary Image": 16,
-  "Binary Image Format": 17,
+  "Binary Image": 16, // Deprecated in v1.2.1
+  "Binary Image Format": 17, // Deprecated in v1.2.1
   "Best Quality Fingers": 18,
+
+  "Full Name - Secondary Language": 19,
+  "Secondary Language": 20,
+  "Location Code": 21,
+  "Legal Status": 22,
+  "Country of Issuance": 23,
 
   "Right Thumb": 50,
   "Right Pointer Finger": 51,
@@ -114,6 +121,12 @@ exports.CLAIM_169_REVERSE_KEY_MAPPER = [
     "16": "Binary Image",
     "17": "Binary Image Format",
     "18": "Best Quality Fingers",
+
+    "19": "Full Name - Secondary Language",
+    "20": "Secondary Language",
+    "21": "Location Code",
+    "22": "Legal Status",
+    "23": "Country of Issuance",
 
     "50": "Right Thumb",
     "51": "Right Pointer Finger",
