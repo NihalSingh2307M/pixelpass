@@ -5,7 +5,7 @@
   "author": "INJI",
   "license": "MPL-2.0",
   "homepage": "https://github.com/inji/pixelpass",
-  "description": "JS module that can be used to compress (zlib) , encode (base45) and generate QR out of given any data. Also can be used to do the operation vice versa",
+  "description": "JS module that can be used to compress (zlib or Brotli), encode (base45) and generate QR out of given any data. Also can be used to do the operation vice versa",
   "main": "src/index.js",
   "scripts": {
     "test": "jest --coverage",
