@@ -348,6 +348,9 @@ test("isZlibHeader returns true for valid zlib compressed data", () => {
 test("isZlibHeader returns false for non-zlib bytes", () => {
   expect(isZlibHeader(new Uint8Array([0xff, 0x00]))).toBe(false);
 });
+test("isZlibHeader returns false for an invalid window size", () => {
+  expect(isZlibHeader(new Uint8Array([0x88, 0x1c]))).toBe(false);
+});
 
 test("isZlibHeader returns false for null input", () => {
   expect(isZlibHeader(null)).toBe(false);

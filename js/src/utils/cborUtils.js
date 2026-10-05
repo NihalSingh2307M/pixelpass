@@ -17,6 +17,7 @@ function isZlibHeader(bytes) {
   const cmf = bytes[0];
   const flg = bytes[1];
   if ((cmf & 0x0f) !== 8) return false;
+  if (cmf >> 4 > 7) return false;
   return ((cmf << 8) + flg) % 31 === 0;
 }
 
