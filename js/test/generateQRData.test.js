@@ -11,7 +11,7 @@ describe("generateQRData", () => {
 
   test("encode QR with header", () => {
     expect(generateQRData("hello", "hdr://"))
-      .toBe("hdr://NCFKVPV0QSIP600GP5L0");
+        .toBe("hdr://NCFKVPV0QSIP600GP5L0");
   });
 
   test("handles empty string", () => {
@@ -29,4 +29,13 @@ describe("generateQRData", () => {
     const result = generateQRData("plain text", "PREFIX:");
     expect(result.startsWith("PREFIX:")).toBe(true);
   });
+});
+
+test("generateQRData throws for an unsupported compressionType", () => {
+  expect(() => generateQRData("{}", "", "gzip")).toThrow(TypeError);
+});
+
+test("generateQRData accepts zlib and brotli compression types", () => {
+  expect(() => generateQRData("{}", "", "zlib")).not.toThrow();
+  expect(() => generateQRData("{}", "", "brotli")).not.toThrow();
 });

@@ -1,7 +1,8 @@
-const zlib = require("zlib");
+const { brotliDecompress } = require("./brotliUtils");
 const pako = require("pako");
 
 const {
+  COMPRESSION_TYPE,
   CLAIM_169_BIOMETRIC_KEYS,
   CLAIM_169_BIOMETRIC_DATA_FORMAT_KEY,
   CLAIM_169_BIOMETRIC_DATA_SUB_FORMAT_KEY,
@@ -24,9 +25,17 @@ function decompressData(binaryData) {
   if (isZlibHeader(binaryData)) {
     return pako.inflate(binaryData);
   }
-  return new Uint8Array(zlib.brotliDecompressSync(Buffer.from(binaryData)));
+  return brotliDecompress(binaryData);
 }
 
+// Reject unknown types up front so they never silently fall back to zlib.
+function assertSupportedCompressionType(type) {
+  if (!Object.values(COMPRESSION_TYPE).includes(type)) {
+    throw new TypeError(
+        `Unsupported compressionType "${type}". Use one of: ${Object.values(COMPRESSION_TYPE).join(", ")}`
+    );
+  }
+}
 function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
@@ -205,4 +214,5 @@ module.exports = {
   decodeFromBase64UrlFormat,
   isZlibHeader,
   decompressData,
+  assertSupportedCompressionType,
 };

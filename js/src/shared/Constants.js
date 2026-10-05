@@ -10,6 +10,8 @@ exports.DEFAULT_QR_QUALITY = 1
 exports.ZIP_HEADER = "PK"
 exports.DEFAULT_ZIP_FILE_NAME = "certificate.json"
 exports.DEFAULT_BROTLI_COMPRESSION_QUALITY = 11
+exports.COMPRESSION_TYPE = Object.freeze({ ZLIB: "zlib", BROTLI: "brotli" })
+exports.DEFAULT_COMPRESSION_TYPE = exports.COMPRESSION_TYPE.ZLIB
 
 exports.CLAIM_169_KEY_MAPPER = {
   "ID": 1,

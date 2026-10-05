@@ -7,13 +7,15 @@ const {
   DEFAULT_ZLIB_COMPRESSION_LEVEL,
   DEFAULT_BROTLI_COMPRESSION_QUALITY,
   DEFAULT_ECC_LEVEL,
+  COMPRESSION_TYPE,
+  DEFAULT_COMPRESSION_TYPE,
   ZIP_HEADER,
   DEFAULT_ZIP_FILE_NAME,
   CLAIM_169_KEY_MAPPER,
   CLAIM_169_VALUE_MAPPER,
   CLAIM_169_REVERSE_KEY_MAPPER,
 } = require("./shared/Constants");
-const zlib = require("zlib");
+const { brotliCompress } = require("./utils/brotliUtils.js");
 const QRCode = require("qrcode");
 const b45 = require("base45-web");
 const pako = require("pako");
@@ -26,6 +28,7 @@ const {
   replaceValuesForClaim169,
   decodeFromBase64UrlFormat,
   decompressData,
+  assertSupportedCompressionType,
 } = require("./utils/cborUtils.js");
 const { toMapWithKeyAndValueMapper } = require("./utils/mapperUtils.js");
 
@@ -44,7 +47,12 @@ function toJson(base64UrlEncodedCborEncodedString) {
   }
 }
 
-function generateQRData(data, header = "", compressionType = "zlib") {
+function generateQRData(
+    data,
+    header = "",
+    compressionType = DEFAULT_COMPRESSION_TYPE
+) {
+  assertSupportedCompressionType(compressionType);
   let parsedData = null;
   let compressedData, b45EncodedData;
 
@@ -52,10 +60,8 @@ function generateQRData(data, header = "", compressionType = "zlib") {
     parsedData = JSON.parse(data);
     const cborEncodedData = cbor.encode(parsedData);
 
-    if (compressionType === "brotli") {
-      compressedData = zlib.brotliCompressSync(cborEncodedData, {
-        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: DEFAULT_BROTLI_COMPRESSION_QUALITY },
-      });
+    if (compressionType === COMPRESSION_TYPE.BROTLI) {
+      compressedData = brotliCompress(cborEncodedData, DEFAULT_BROTLI_COMPRESSION_QUALITY);
     } else {
       compressedData = pako.deflate(cborEncodedData, {
         level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
@@ -64,10 +70,8 @@ function generateQRData(data, header = "", compressionType = "zlib") {
   } catch (e) {
     console.error("Data is not JSON");
 
-    if (compressionType === "brotli") {
-      compressedData = zlib.brotliCompressSync(Buffer.from(data), {
-        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: DEFAULT_BROTLI_COMPRESSION_QUALITY },
-      });
+    if (compressionType === COMPRESSION_TYPE.BROTLI) {
+      compressedData = brotliCompress(new TextEncoder().encode(data), DEFAULT_BROTLI_COMPRESSION_QUALITY);
     } else {
       compressedData = pako.deflate(data, {
         level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
@@ -84,7 +88,7 @@ async function generateQRCode(
   data,
   ecc = DEFAULT_ECC_LEVEL,
   header = "",
-  compressionType = "zlib"
+  compressionType = DEFAULT_COMPRESSION_TYPE
 ) {
   const base45Data = generateQRData(data, header, compressionType);
   const opts = {
