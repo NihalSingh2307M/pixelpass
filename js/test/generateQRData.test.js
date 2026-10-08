@@ -39,3 +39,18 @@ test("generateQRData accepts zlib and brotli compression types", () => {
   expect(() => generateQRData("{}", "", "zlib")).not.toThrow();
   expect(() => generateQRData("{}", "", "brotli")).not.toThrow();
 });
+
+test("generateQRData surfaces the real Brotli error in browser builds", () => {
+  jest.resetModules();
+  jest.doMock("zlib", () => ({ ...jest.requireActual("zlib"), brotliCompressSync: undefined }));
+  const { generateQRData: browserGenerateQRData } = require("../src");
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  const message = "Brotli compression is only supported in Node.js";
+
+  expect(() => browserGenerateQRData('{"a":1}', "", "brotli")).toThrow(message);
+  expect(() => browserGenerateQRData("plain text", "", "brotli")).toThrow(message);
+
+  spy.mockRestore();
+  jest.dontMock("zlib");
+  jest.resetModules();
+});

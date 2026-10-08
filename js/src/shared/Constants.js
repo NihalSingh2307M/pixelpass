@@ -12,6 +12,10 @@ exports.DEFAULT_ZIP_FILE_NAME = "certificate.json"
 exports.DEFAULT_BROTLI_COMPRESSION_QUALITY = 11
 exports.COMPRESSION_TYPE = Object.freeze({ ZLIB: "zlib", BROTLI: "brotli" })
 exports.DEFAULT_COMPRESSION_TYPE = exports.COMPRESSION_TYPE.ZLIB
+// 1 MB decompressed-output
+exports.MAX_DECOMPRESSED_SIZE = 1024 * 1024
+exports.DECOMPRESSED_SIZE_EXCEEDED_MESSAGE = "Decompressed data exceeds maximum allowed size"
+
 
 exports.CLAIM_169_KEY_MAPPER = {
   "ID": 1,

@@ -47,41 +47,32 @@ function toJson(base64UrlEncodedCborEncodedString) {
   }
 }
 
+function compress(bytes, compressionType) {
+  if (compressionType === COMPRESSION_TYPE.BROTLI) {
+    return brotliCompress(bytes, DEFAULT_BROTLI_COMPRESSION_QUALITY);
+  }
+  return pako.deflate(bytes, { level: DEFAULT_ZLIB_COMPRESSION_LEVEL });
+}
+
 function generateQRData(
     data,
     header = "",
     compressionType = DEFAULT_COMPRESSION_TYPE
 ) {
   assertSupportedCompressionType(compressionType);
-  let parsedData = null;
-  let compressedData, b45EncodedData;
 
+  // Only JSON parsing sits in the try, so compression failures surface as-is
+  // instead of being retried on the fallback path or hidden by a later error.
+  let payload;
   try {
-    parsedData = JSON.parse(data);
-    const cborEncodedData = cbor.encode(parsedData);
-
-    if (compressionType === COMPRESSION_TYPE.BROTLI) {
-      compressedData = brotliCompress(cborEncodedData, DEFAULT_BROTLI_COMPRESSION_QUALITY);
-    } else {
-      compressedData = pako.deflate(cborEncodedData, {
-        level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
-      });
-    }
+    payload = cbor.encode(JSON.parse(data));
   } catch (e) {
     console.error("Data is not JSON");
-
-    if (compressionType === COMPRESSION_TYPE.BROTLI) {
-      compressedData = brotliCompress(new TextEncoder().encode(data), DEFAULT_BROTLI_COMPRESSION_QUALITY);
-    } else {
-      compressedData = pako.deflate(data, {
-        level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
-      });
-    }
-  } finally {
-    b45EncodedData = b45.encode(compressedData).toString();
+    payload = new TextEncoder().encode(data);
   }
 
-  return header + b45EncodedData;
+  const compressedData = compress(payload, compressionType);
+  return header + b45.encode(compressedData).toString();
 }
 
 async function generateQRCode(

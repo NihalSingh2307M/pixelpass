@@ -3,6 +3,8 @@ const pako = require("pako");
 
 const {
   COMPRESSION_TYPE,
+  MAX_DECOMPRESSED_SIZE,
+  DECOMPRESSED_SIZE_EXCEEDED_MESSAGE,
   CLAIM_169_BIOMETRIC_KEYS,
   CLAIM_169_BIOMETRIC_DATA_FORMAT_KEY,
   CLAIM_169_BIOMETRIC_DATA_SUB_FORMAT_KEY,
@@ -21,12 +23,35 @@ function isZlibHeader(bytes) {
   return ((cmf << 8) + flg) % 31 === 0;
 }
 
-// Support both zlib and Brotli compressed payloads.
-function decompressData(binaryData) {
-  if (isZlibHeader(binaryData)) {
-    return pako.inflate(binaryData);
+// Inflate in chunks and bail out as soon as the running total passes the cap,
+// so a tiny hostile payload can never balloon into gigabytes of memory.
+function zlibDecompress(bytes, maxSize = MAX_DECOMPRESSED_SIZE) {
+  const chunks = [];
+  let total = 0;
+  const inflator = new pako.Inflate();
+  inflator.onData = (chunk) => {
+    total += chunk.length;
+    if (total > maxSize) throw new Error(DECOMPRESSED_SIZE_EXCEEDED_MESSAGE);
+    chunks.push(chunk);
+  };
+  inflator.push(bytes, true);
+  if (inflator.err) throw new Error(inflator.msg || "zlib inflate failed");
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.length;
   }
-  return brotliDecompress(binaryData);
+  return output;
+}
+
+// Support both zlib and Brotli compressed payloads, each capped at the same size.
+function decompressData(binaryData, maxSize = MAX_DECOMPRESSED_SIZE) {
+  if (isZlibHeader(binaryData)) {
+    return zlibDecompress(binaryData, maxSize);
+  }
+  return brotliDecompress(binaryData, maxSize);
 }
 
 // Reject unknown types up front so they never silently fall back to zlib.
