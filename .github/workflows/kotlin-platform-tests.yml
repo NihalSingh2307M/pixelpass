@@ -21,9 +21,9 @@ jobs:
         include:
           - os: ubuntu-latest
             tasks: ':PixelPass:jvmTest :PixelPass:testDebugUnitTest'
-          # AGP and the Android SDK tooling have no Linux ARM host support, so only the JVM tests run here.
+          # No Android SDK on Linux ARM; jvmTest is finalized by the Jacoco task, which depends on the Android tests.
           - os: ubuntu-24.04-arm
-            tasks: ':PixelPass:jvmTest'
+            tasks: ':PixelPass:jvmTest -x :PixelPass:jacocoMergedReport'
           - os: macos-latest
             tasks: ':PixelPass:jvmTest :PixelPass:testDebugUnitTest'
           - os: macos-15-intel
