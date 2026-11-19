@@ -18,12 +18,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-          - macos-latest
-          - macos-15-intel
-          - windows-latest
+        include:
+          - os: ubuntu-latest
+            tasks: ':PixelPass:jvmTest :PixelPass:testDebugUnitTest'
+          # AGP and the Android SDK tooling have no Linux ARM host support, so only the JVM tests run here.
+          - os: ubuntu-24.04-arm
+            tasks: ':PixelPass:jvmTest'
+          - os: macos-latest
+            tasks: ':PixelPass:jvmTest :PixelPass:testDebugUnitTest'
+          - os: macos-15-intel
+            tasks: ':PixelPass:jvmTest :PixelPass:testDebugUnitTest'
+          - os: windows-latest
+            tasks: ':PixelPass:jvmTest :PixelPass:testDebugUnitTest'
     defaults:
       run:
         working-directory: kotlin
@@ -35,14 +41,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        if: matrix.os == 'ubuntu-24.04-arm'
-        uses: android-actions/setup-android@v3
-
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Run JVM and Android unit tests
-        run: ./gradlew :PixelPass:jvmTest :PixelPass:testDebugUnitTest
+      - name: Run tests
+        run: ./gradlew ${{ matrix.tasks }}
 
       - name: Upload test reports
         if: always()
