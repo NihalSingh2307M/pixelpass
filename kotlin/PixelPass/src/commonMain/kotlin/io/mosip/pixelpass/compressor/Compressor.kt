@@ -2,7 +2,7 @@ package io.mosip.pixelpass.compressor
 
 import io.mosip.pixelpass.shared.DEFAULT_COMPRESSION_LEVEL
 
-interface Compressor {
+internal interface Compressor {
     fun encode(
         input: ByteArray,
         qualityLevel: Int = DEFAULT_COMPRESSION_LEVEL

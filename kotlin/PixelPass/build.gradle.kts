@@ -12,6 +12,25 @@ jacoco {
     reportsDirectory = layout.buildDirectory.dir("reports/jacoco")
 }
 
+val brotli4jVersion = "1.23.0"
+val brotli4droidVersion = "1.1.0"
+
+// Brotli4j publishes one native artifact per OS/arch, so tests load the one matching the build host.
+// Unsupported hosts get null and Brotli tests fail with the loader's explicit error.
+val hostBrotliNative: String? = run {
+    val os = System.getProperty("os.name").lowercase()
+    val arch = System.getProperty("os.arch").lowercase()
+    val isArm = arch == "aarch64" || arch == "arm64"
+    val isX64 = arch == "amd64" || arch == "x86_64"
+    val classifier = when {
+        os.contains("win") -> if (isArm) "windows-aarch64" else if (isX64) "windows-x86_64" else null
+        os.contains("mac") -> if (isArm) "osx-aarch64" else if (isX64) "osx-x86_64" else null
+        os.contains("linux") -> if (isArm) "linux-aarch64" else if (isX64) "linux-x86_64" else null
+        else -> null
+    }
+    classifier?.let { "com.aayushatharva.brotli4j:native-$it:$brotli4jVersion" }
+}
+
 kotlin {
     jvmToolchain(17)
 
@@ -36,26 +55,6 @@ kotlin {
                 implementation(libs.cbor)
                 implementation(libs.ztzip)
                 implementation(libs.org.json)
-                implementation("com.aayushatharva.brotli4j:brotli4j:1.23.0")
-                // Select ONLY the native runtime for your target platform.
-                // Replace `<version>` with your desired Brotli4j release.
-                // Example: implementation("com.aayushatharva.brotli4j:native-linux-x86_64:1.23.0")
-                // Use the same version for `brotli4j` and all `native-*` dependencies.
-                // Linux:
-                // implementation("com.aayushatharva.brotli4j:native-linux-x86_64:<version>")
-                // implementation("com.aayushatharva.brotli4j:native-linux-aarch64:<version>")
-                // implementation("com.aayushatharva.brotli4j:native-linux-armv7:<version>")
-                // implementation("com.aayushatharva.brotli4j:native-linux-ppc64le:<version>")
-                // implementation("com.aayushatharva.brotli4j:native-linux-s390x:<version>")
-                // implementation("com.aayushatharva.brotli4j:native-linux-riscv64:<version>")
-                //
-                // macOS:
-                // implementation("com.aayushatharva.brotli4j:native-osx-x86_64:<version>")
-                // implementation("com.aayushatharva.brotli4j:native-osx-aarch64:<version>")
-                //
-                // Windows:
-                 implementation("com.aayushatharva.brotli4j:native-windows-x86_64:1.23.0")
-                // implementation("com.aayushatharva.brotli4j:native-windows-aarch64:<version>")
             }
         }
         val commonTest by getting {
@@ -66,20 +65,40 @@ kotlin {
                 implementation(libs.json)
             }
         }
-        val jvmMain by getting
-        val androidMain by getting
-        val jvmTest by getting
+        val jvmMain by getting {
+            dependencies { implementation("com.aayushatharva.brotli4j:brotli4j:$brotli4jVersion") }
+        }
+        val androidMain by getting {
+            dependencies {
+                // Netty is only used by the library's one-shot helpers, not the stream API PixelPass calls.
+                implementation("io.github.lukeaschenbrenner:Brotli4Droid:$brotli4droidVersion") {
+                    exclude(group = "io.netty")
+                }
+            }
+        }
+        val jvmTest by getting {
+            dependencies { hostBrotliNative?.let { runtimeOnly(it) } }
+        }
         val androidUnitTest by getting
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.androidx.junit)
+                implementation("androidx.test:runner:1.5.2")
+            }
+        }
 
     }
 }
 
 android {
     namespace = "io.mosip.pixelpass"
-    compileSdk = 33
+    // Brotli4Droid's AAR metadata requires compiling against API 34 or later.
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 23
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -243,4 +262,3 @@ sonarqube {
         property("sonar.tests", "src/commonTest/kotlin,src/jvmTest/kotlin,src/androidUnitTest/kotlin")
     }
 }
-

@@ -1,6 +1,7 @@
 package io.mosip.pixelpass.qr_generator.brotli
 
 import io.mockk.clearAllMocks
+import io.mosip.pixelpass.IgnoreOnAndroid
 import io.mosip.pixelpass.factory.CompressorFactory
 import io.mosip.pixelpass.shared.CompressionType
 import kotlin.test.AfterTest
@@ -8,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith
 
+@IgnoreOnAndroid
 class BrotliTest {
 
     @AfterTest
