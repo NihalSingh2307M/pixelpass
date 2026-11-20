@@ -13,7 +13,7 @@ jacoco {
 }
 
 val brotli4jVersion = "1.23.0"
-val brotli4droidVersion = "1.1.0"
+val brotli4droidVersion = "1.2.0"
 
 // Brotli4j publishes one native artifact per OS/arch, so tests load the one matching the build host.
 // Unsupported hosts get null and Brotli tests fail with the loader's explicit error.

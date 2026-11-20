@@ -3,7 +3,7 @@
 ## Features
 
 - Create QR Code for given data
-- Uses zlib compression and base45 encoding
+- Uses zlib (default) or Brotli compression and base45 encoding
 - Decode QR data encoded by PixelPass
 - Convert CBOR encoded base64Url string to JSON
 
@@ -26,9 +26,68 @@ Both Kotlin and Java packages are compiled from same Kotlin codebase. They are a
 ```
 
 
+## Compression
+
+`generateQRCode` and `generateQRData` accept an optional `compressorType`: `"zlib"` (default) or `"brotli"`, case-insensitive. Any other value throws `IllegalArgumentException`.
+
+`decode` detects the format by itself: data with a zlib header is inflated as zlib, anything else is decoded as Brotli. QR data from earlier versions, and calls that omit `compressorType`, behave exactly as before.
+
+### Requirements
+
+- JDK 17. The project is built with Kotlin 2.0.0 and Android Gradle Plugin 8.3.0.
+- Android `minSdk` 23. Android builds compile against API 34 (`compileSdk = 34`).
+
+### Brotli native libraries
+
+Brotli uses [Brotli4j](https://github.com/hyperxpro/Brotli4j) (`1.23.0`) on the JVM and [Brotli4Droid](https://central.sonatype.com/artifact/io.github.lukeaschenbrenner/Brotli4Droid) (`1.2.0`) on Android. Both load a native library. PixelPass declares only the Java part on the JVM, so zlib works everywhere without extra setup.
+
+If the native library cannot load, Brotli calls throw `UnsupportedOperationException` with the loader error as the cause. Zlib is unaffected.
+
+#### Building PixelPass (Windows, Linux, macOS)
+
+No manual changes are needed. `kotlin/PixelPass/build.gradle.kts` picks the Brotli4j native for the host OS and CPU for the JVM tests:
+
+```
+cd kotlin
+./gradlew :PixelPass:jvmTest :PixelPass:testDebugUnitTest
+```
+
+The same command works in Windows PowerShell and in Linux and macOS shells. Android unit tests run on the host JVM and skip Brotli. Building the Android target needs the Android SDK, which is not available on Linux ARM hosts. There, run only the JVM tests with `./gradlew :PixelPass:jvmTest -x :PixelPass:jacocoMergedReport`.
+
+#### Using Brotli in a JVM app
+
+Add the native for your OS and CPU, with the same version as `brotli4j`:
+
+```kotlin
+runtimeOnly("com.aayushatharva.brotli4j:native-linux-x86_64:1.23.0") // or windows-x86_64, osx-aarch64, ...
+```
+
+#### Android
+
+Brotli4Droid bundles its native libraries, so no extra dependency is needed. Brotli encode and decode through `PixelPass` are verified on Android 15 (API 35) emulators with both 4 KB and 16 KB page sizes.
+
+Keep Brotli4Droid at `1.2.0` or newer. Versions `1.1.0` and `1.1.1` did not pass the instrumented tests on a 16 KB page-size emulator. Verification on physical devices and on ABIs other than the emulator's was done with an earlier version only, so re-run the instrumented tests on your target hardware.
+
+Android unit tests run on the host JVM, so Brotli on Android is covered by instrumented tests. Run them with a device attached: `./gradlew :PixelPass:connectedDebugAndroidTest`.
+
+### Platform support
+
+| Platform | Brotli | Verified by |
+|---|---|---|
+| Windows x86_64 | Yes | CI and local run |
+| Linux x86_64 | Yes | CI |
+| Linux aarch64 | Yes | CI, JVM tests only |
+| macOS Apple Silicon | Yes | CI |
+| macOS Intel | Yes | CI |
+| Android emulator (x86_64 image), 4 KB pages | Yes | Instrumented tests, Pixel 8 API 35 |
+| Android emulator (x86_64 image), 16 KB pages | Yes | Instrumented tests, Pixel 8 API 35 |
+| Android physical devices (arm64-v8a, armeabi-v7a) | Not re-verified with `1.2.0` | Verified with `1.1.0` on one Android 13 device |
+
+CI runs on GitHub-hosted runners through `.github/workflows/kotlin-platform-tests.yml`.
+
 ## APIs
 
-`generateQRCode( data, ecc, header )`
+`generateQRCode( data, ecc, header, compressorType )`
 
 `data` - Data needs to be compressed and encoded
 
@@ -36,14 +95,18 @@ Both Kotlin and Java packages are compiled from same Kotlin codebase. They are a
 
 `header` - Data header need to be prepend to identify the encoded data. defaults to `""`
 
+`compressorType` - `"zlib"` or `"brotli"`. defaults to `"zlib"`
+
 returns a Base64-encoded PNG string of the QR code image. If a header is provided, it's included in the data that gets encoded into the QR.
 
 
-`generateQRData( data, header )`
+`generateQRData( data, header, compressorType )`
 
 `data` - Data needs to be compressed and encoded
 
 `header` - Data header need to be prepend to identify the encoded data. defaults to `""`
+
+`compressorType` - `"zlib"` or `"brotli"`. defaults to `"zlib"`
 
 returns compressed and encoded data for qrcode with header prepended if provided.
 
@@ -51,7 +114,7 @@ returns compressed and encoded data for qrcode with header prepended if provided
 
 `data` - Data needs to be decoded and decompressed without header
 
-returns a base45 decoded and zlib decompressed string
+returns a base45 decoded and decompressed string. The compression format (zlib or Brotli) is detected automatically.
 
 `decodeBinary(data)`
 

@@ -11,7 +11,12 @@ import java.io.ByteArrayOutputStream
 internal class JvmBrotliCompressor : Compressor {
 
     init {
-        Brotli4jLoader.ensureAvailability()
+        // Brotli4j needs a native per OS/arch; surface a clear error when the host's is missing.
+        try {
+            Brotli4jLoader.ensureAvailability()
+        } catch (e: LinkageError) {
+            throw UnsupportedOperationException("Brotli native runtime is unavailable on this platform", e)
+        }
     }
 
     override fun encode(input: ByteArray, qualityLevel: Int): ByteArray {
