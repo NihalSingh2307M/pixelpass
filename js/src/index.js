@@ -5,13 +5,17 @@ const {
   COLOR_BLACK,
   COLOR_WHITE,
   DEFAULT_ZLIB_COMPRESSION_LEVEL,
+  DEFAULT_BROTLI_COMPRESSION_QUALITY,
   DEFAULT_ECC_LEVEL,
+  COMPRESSION_TYPE,
+  DEFAULT_COMPRESSION_TYPE,
   ZIP_HEADER,
   DEFAULT_ZIP_FILE_NAME,
   CLAIM_169_KEY_MAPPER,
   CLAIM_169_VALUE_MAPPER,
   CLAIM_169_REVERSE_KEY_MAPPER,
 } = require("./shared/Constants");
+const { brotliCompress } = require("./utils/brotliUtils.js");
 const QRCode = require("qrcode");
 const b45 = require("base45-web");
 const pako = require("pako");
@@ -23,6 +27,8 @@ const {
   replaceKeysAtDepth,
   replaceValuesForClaim169,
   decodeFromBase64UrlFormat,
+  decompressData,
+  assertSupportedCompressionType,
 } = require("./utils/cborUtils.js");
 const { toMapWithKeyAndValueMapper } = require("./utils/mapperUtils.js");
 
@@ -41,28 +47,41 @@ function toJson(base64UrlEncodedCborEncodedString) {
   }
 }
 
-function generateQRData(data, header = "") {
-  let parsedData = null;
-  let compressedData, b45EncodedData;
-  try {
-    parsedData = JSON.parse(data);
-    const cborEncodedData = cbor.encode(parsedData);
-    compressedData = pako.deflate(cborEncodedData, {
-      level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
-    });
-  } catch (e) {
-    console.error("Data is not JSON");
-    compressedData = pako.deflate(data, {
-      level: DEFAULT_ZLIB_COMPRESSION_LEVEL,
-    });
-  } finally {
-    b45EncodedData = b45.encode(compressedData).toString();
+function compress(bytes, compressionType) {
+  if (compressionType === COMPRESSION_TYPE.BROTLI) {
+    return brotliCompress(bytes, DEFAULT_BROTLI_COMPRESSION_QUALITY);
   }
-  return header + b45EncodedData;
+  return pako.deflate(bytes, { level: DEFAULT_ZLIB_COMPRESSION_LEVEL });
 }
 
-async function generateQRCode(data, ecc = DEFAULT_ECC_LEVEL, header = "") {
-  const base45Data = generateQRData(data, header);
+function generateQRData(
+    data,
+    header = "",
+    compressionType = DEFAULT_COMPRESSION_TYPE
+) {
+  assertSupportedCompressionType(compressionType);
+
+  // Only JSON parsing sits in the try, so compression failures surface as-is
+  // instead of being retried on the fallback path or hidden by a later error.
+  let payload;
+  try {
+    payload = cbor.encode(JSON.parse(data));
+  } catch (e) {
+    console.error("Data is not JSON");
+    payload = new TextEncoder().encode(data);
+  }
+
+  const compressedData = compress(payload, compressionType);
+  return header + b45.encode(compressedData).toString();
+}
+
+async function generateQRCode(
+  data,
+  ecc = DEFAULT_ECC_LEVEL,
+  header = "",
+  compressionType = DEFAULT_COMPRESSION_TYPE
+) {
+  const base45Data = generateQRData(data, header, compressionType);
   const opts = {
     errorCorrectionLevel: ecc,
     quality: DEFAULT_QR_QUALITY,
@@ -80,7 +99,7 @@ function decode(data) {
   const decodedBase45Data = b45.decode(data);
   // Base45 returns number[], convert it
   const binaryData = Uint8Array.from(decodedBase45Data);
-  const decompressedData = pako.inflate(binaryData);
+  const decompressedData = decompressData(binaryData);
   const textData = new TextDecoder().decode(decompressedData);
   try {
     const decodedCBORData = cbor.decodeFirstSync(decompressedData);

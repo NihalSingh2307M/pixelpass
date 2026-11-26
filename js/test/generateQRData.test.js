@@ -11,7 +11,7 @@ describe("generateQRData", () => {
 
   test("encode QR with header", () => {
     expect(generateQRData("hello", "hdr://"))
-      .toBe("hdr://NCFKVPV0QSIP600GP5L0");
+        .toBe("hdr://NCFKVPV0QSIP600GP5L0");
   });
 
   test("handles empty string", () => {
@@ -30,4 +30,28 @@ describe("generateQRData", () => {
     expect(result.startsWith("PREFIX:")).toBe(true);
   });
 
+});
+
+test("generateQRData throws for an unsupported compressionType", () => {
+  expect(() => generateQRData("{}", "", "gzip")).toThrow(TypeError);
+});
+
+test("generateQRData accepts zlib and brotli compression types", () => {
+  expect(() => generateQRData("{}", "", "zlib")).not.toThrow();
+  expect(() => generateQRData("{}", "", "brotli")).not.toThrow();
+});
+
+test("generateQRData surfaces the real Brotli error in browser builds", () => {
+  jest.resetModules();
+  jest.doMock("zlib", () => ({ ...jest.requireActual("zlib"), brotliCompressSync: undefined }));
+  const { generateQRData: browserGenerateQRData } = require("../src");
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  const message = "Brotli compression is only supported in Node.js";
+
+  expect(() => browserGenerateQRData('{"a":1}', "", "brotli")).toThrow(message);
+  expect(() => browserGenerateQRData("plain text", "", "brotli")).toThrow(message);
+
+  spy.mockRestore();
+  jest.dontMock("zlib");
+  jest.resetModules();
 });
