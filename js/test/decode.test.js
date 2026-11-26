@@ -1,3 +1,4 @@
+const zlib = require("zlib");
 const { decode, generateQRData } = require("../src");
 
 describe("decode", () => {
@@ -42,4 +43,14 @@ describe("decode", () => {
     const decodedData = decode(qrData);
     expect(decodedData).toStrictEqual(cwtData);
   });
+
+test("decode handles Brotli compressed input", () => {
+  const base45 = require("base45-web");
+
+  const payload = "hello brotli";
+  const brotliCompressed = zlib.brotliCompressSync(Buffer.from(payload));
+  const base45Encoded = base45.encode(Buffer.from(brotliCompressed));
+
+  expect(decode(base45Encoded)).toBe(payload);
+});
 });

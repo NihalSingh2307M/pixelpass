@@ -1,4 +1,10 @@
+const { brotliDecompress } = require("./brotliUtils");
+const pako = require("pako");
+
 const {
+  COMPRESSION_TYPE,
+  MAX_DECOMPRESSED_SIZE,
+  DECOMPRESSED_SIZE_EXCEEDED_MESSAGE,
   CLAIM_169_BIOMETRIC_KEYS,
   CLAIM_169_BIOMETRIC_DATA_FORMAT_KEY,
   CLAIM_169_BIOMETRIC_DATA_SUB_FORMAT_KEY,
@@ -7,6 +13,55 @@ const {
   CLAIM_169_ROOT_REVERSE_VALUE_MAPPER,
 } = require("../shared/Constants");
 
+// Check if the payload uses the zlib format.
+function isZlibHeader(bytes) {
+  if (!bytes || bytes.length < 2) return false;
+  const cmf = bytes[0];
+  const flg = bytes[1];
+  if ((cmf & 0x0f) !== 8) return false;
+  if (cmf >> 4 > 7) return false;
+  return ((cmf << 8) + flg) % 31 === 0;
+}
+
+// Inflate in chunks and bail out as soon as the running total passes the cap,
+// so a tiny hostile payload can never balloon into gigabytes of memory.
+function zlibDecompress(bytes, maxSize = MAX_DECOMPRESSED_SIZE) {
+  const chunks = [];
+  let total = 0;
+  const inflator = new pako.Inflate();
+  inflator.onData = (chunk) => {
+    total += chunk.length;
+    if (total > maxSize) throw new Error(DECOMPRESSED_SIZE_EXCEEDED_MESSAGE);
+    chunks.push(chunk);
+  };
+  inflator.push(bytes, true);
+  if (inflator.err) throw new Error(inflator.msg || "zlib inflate failed");
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return output;
+}
+
+// Support both zlib and Brotli compressed payloads, each capped at the same size.
+function decompressData(binaryData, maxSize = MAX_DECOMPRESSED_SIZE) {
+  if (isZlibHeader(binaryData)) {
+    return zlibDecompress(binaryData, maxSize);
+  }
+  return brotliDecompress(binaryData, maxSize);
+}
+
+// Reject unknown types up front so they never silently fall back to zlib.
+function assertSupportedCompressionType(type) {
+  if (!Object.values(COMPRESSION_TYPE).includes(type)) {
+    throw new TypeError(
+        `Unsupported compressionType "${type}". Use one of: ${Object.values(COMPRESSION_TYPE).join(", ")}`
+    );
+  }
+}
 function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
@@ -177,11 +232,13 @@ function replaceValuesForClaim169(jsonData) {
 function decodeFromBase64UrlFormat(content) {
   return Buffer.from(content, "base64url");
 }
-
 module.exports = {
   hexToBytes,
   translateToJson,
   replaceKeysAtDepth,
   replaceValuesForClaim169,
   decodeFromBase64UrlFormat,
+  isZlibHeader,
+  decompressData,
+  assertSupportedCompressionType,
 };
