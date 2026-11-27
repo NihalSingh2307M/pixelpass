@@ -21,7 +21,7 @@ class BrotliTest {
     fun `should encode and decode given string using brotli`() {
         val data = "test".toByteArray()
 
-        val compressor = CompressorFactory.create(CompressionType.BROTLI)
+        val compressor = CompressorFactory.getCompressor(CompressionType.BROTLI)
 
         val compressed = compressor.encode(data)
         val decompressed = compressor.decode(compressed)
@@ -33,7 +33,7 @@ class BrotliTest {
     fun `should encode and decode given string using brotli with given quality level`() {
         val data = "test".toByteArray()
 
-        val compressor = CompressorFactory.create(CompressionType.BROTLI)
+        val compressor = CompressorFactory.getCompressor(CompressionType.BROTLI)
 
         val compressed = compressor.encode(data, 5)
         val decompressed = compressor.decode(compressed)
@@ -45,7 +45,7 @@ class BrotliTest {
     fun `should encode and decode unicode string`() {
         val data = "hello world".toByteArray(Charsets.UTF_8)
 
-        val compressor = CompressorFactory.create(CompressionType.BROTLI)
+        val compressor = CompressorFactory.getCompressor(CompressionType.BROTLI)
 
         val compressed = compressor.encode(data)
         val decompressed = compressor.decode(compressed)
@@ -57,7 +57,7 @@ class BrotliTest {
     fun `should encode and decode empty byte array`() {
         val data = ByteArray(0)
 
-        val compressor = CompressorFactory.create(CompressionType.BROTLI)
+        val compressor = CompressorFactory.getCompressor(CompressionType.BROTLI)
 
         val compressed = compressor.encode(data)
         val decompressed = compressor.decode(compressed)
@@ -69,7 +69,7 @@ class BrotliTest {
     fun `should throw exception for invalid brotli data`() {
         val invalid = "not brotli".toByteArray()
 
-        val compressor = CompressorFactory.create(CompressionType.BROTLI)
+        val compressor = CompressorFactory.getCompressor(CompressionType.BROTLI)
 
         assertFailsWith<Exception> {
             compressor.decode(invalid)

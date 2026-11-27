@@ -12,7 +12,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class BrotliAndroidInstrumentedTest {
-    private val compressor = CompressorFactory.create(CompressionType.BROTLI)
+    private val compressor = CompressorFactory.getCompressor(CompressionType.BROTLI)
 
     @Test
     fun roundTrip() {

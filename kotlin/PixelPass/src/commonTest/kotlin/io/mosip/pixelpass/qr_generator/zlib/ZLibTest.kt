@@ -17,7 +17,7 @@ class ZLibTest {
     fun `should encode given string to zlib format`() {
         val data = "test".toByteArray()
         val expected = byteArrayOf(120, -38, 43, 73, 45, 46, 1, 0, 4, 93, 1, -63)
-        val compressor = CompressorFactory.create()
+        val compressor = CompressorFactory.getCompressor()
         val actual = compressor.encode(data)
         assertContentEquals(expected, actual)
     }
@@ -26,7 +26,7 @@ class ZLibTest {
     fun `should encode given string to zlib format with given compression level`() {
         val data = "test".toByteArray()
         val expected = byteArrayOf(120, 94, 43, 73, 45, 46, 1, 0, 4, 93, 1, -63)
-        val compressor = CompressorFactory.create()
+        val compressor = CompressorFactory.getCompressor()
         val actual = compressor.encode(data,5)
         assertContentEquals(expected, actual)
     }
@@ -35,7 +35,7 @@ class ZLibTest {
     fun `should decode given zlib compressed byte array to string format`() {
         val data = byteArrayOf(120, -38, 43, 73, 45, 46, 1, 0, 4, 93, 1, -63)
         val expected = "test".toByteArray()
-        val compressor = CompressorFactory.create()
+        val compressor = CompressorFactory.getCompressor()
         val actual = compressor.decode(data)
         assertContentEquals(expected, actual)
     }

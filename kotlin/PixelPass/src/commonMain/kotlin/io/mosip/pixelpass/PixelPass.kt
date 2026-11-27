@@ -56,9 +56,9 @@ class PixelPass {
     val decodedBase45Data = Base45.getDecoder().decode(data)
     val compressor =
       if (isDataZlibEncoded(decodedBase45Data)) {
-        CompressorFactory.create(CompressionType.ZLIB)
+        CompressorFactory.getCompressor(CompressionType.ZLIB)
       } else {
-        CompressorFactory.create(CompressionType.BROTLI)
+        CompressorFactory.getCompressor(CompressionType.BROTLI)
       }
 
     val decompressedData = compressor.decode(decodedBase45Data)
@@ -99,7 +99,7 @@ class PixelPass {
     val parsedData: Any?
     var compressedData = byteArrayOf()
     val b45EncodedData: String
-    val compressor = CompressorFactory.create(CompressionType.fromString(compressorType))
+    val compressor = CompressorFactory.getCompressor(CompressionType.fromString(compressorType))
     try {
       parsedData =
         if (data.startsWith('[') && data.endsWith(']')) {

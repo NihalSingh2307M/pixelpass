@@ -6,7 +6,7 @@ import io.mosip.pixelpass.shared.CompressionType
 import io.mosip.pixelpass.zlib.ZLibCompressor
 
 internal object CompressorFactory {
-    fun create(type: CompressionType = CompressionType.ZLIB): Compressor =
+    fun getCompressor(type: CompressionType = CompressionType.ZLIB): Compressor =
         when (type) {
             CompressionType.ZLIB -> ZLibCompressor()
             CompressionType.BROTLI -> createBrotliCompressor()
